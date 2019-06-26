@@ -8,8 +8,10 @@
 
 import UIKit
 import RealmSwift
+import ChameleonFramework
 
-class TodoListViewController: UITableViewController {
+
+class TodoListViewController: SwipeTableViewController {
     
     var todoItems: Results<Item>?
     let realm = try! Realm()
@@ -24,7 +26,7 @@ class TodoListViewController: UITableViewController {
         super.viewDidLoad()
         
         self.title = selectedCategory?.name
-
+        
     }
         
     
@@ -37,11 +39,17 @@ class TodoListViewController: UITableViewController {
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         
-        let cell = tableView.dequeueReusableCell(withIdentifier: "ToDoItem", for: indexPath)
+        let cell = super.tableView(tableView, cellForRowAt: indexPath)
         
         if let item = todoItems?[indexPath.row] {
             cell.textLabel?.text = item.title
-            cell.accessoryType = item.done ? .checkmark : .none
+            cell.accessoryType   = item.done ? .checkmark : .none
+            
+            if let itemColor = UIColor(hexString: selectedCategory!.cellColor)?.darken(byPercentage: CGFloat(indexPath.row) / CGFloat(todoItems!.count)) {
+                cell.backgroundColor = itemColor
+                cell.textLabel?.textColor = ContrastColorOf(itemColor, returnFlat: true)
+            }
+            
         } else {
             cell.textLabel?.text = "No Items Added"
         }
@@ -110,13 +118,24 @@ class TodoListViewController: UITableViewController {
     
     
     
-    // MARK - Model Manipulating Methods   
-    
+    // MARK - Model Manipulating Methods
     func loadItems() {
-
         todoItems = selectedCategory?.items.sorted(byKeyPath: "title", ascending: true)
         tableView.reloadData()
-
+    }
+    
+    
+    override func updateModel(at indexPath: IndexPath) {
+        if let itemForDeletion = self.todoItems?[indexPath.row] {
+            do {
+                try self.realm.write {
+                    self.realm.delete(itemForDeletion)
+                }
+            } catch {
+                print("Error deleting this item, \(error.localizedDescription)")
+            }
+        }
+        
     }
     
 }
